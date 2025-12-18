@@ -2,20 +2,25 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 3000;
+const API_SECRET = process.env.API_SECRET;
+
 app.use(express.json());
 
-// =====================
-// CONFIGURACIÓN LOGIN
-// =====================
-const ADMIN = "ADMIN-1407";
+app.use(cors({
+  origin: "*",
+  methods: ["POST"],
+}));
 
-// usuarios: clave -> timestamp vencimiento
-let usuarios = {};
+function auth(req, res, next) {
+  const key = req.headers["x-api-key"];
+  if (!key || key !== API_SECRET) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+}
 
-// =====================
-// LOTES (OCULTOS)
-// =====================
+/* ===== LOTES (PRIVADOS) ===== */
 const lotes3 = [
   [0,13,28],[1,18,36],[1,25,34],[2,10,35],[2,10,22],
   [3,18,19],[4,10,22],[6,17,28],[7,19,27],
@@ -29,63 +34,26 @@ const lotes4 = [
   [6,10,13,31],[14,23,25,16]
 ];
 
-// =====================
-// LOGIN
-// =====================
-app.post("/login", (req, res) => {
-  const { clave } = req.body;
-  const ahora = Date.now();
-
-  if (clave === ADMIN) {
-    return res.json({ ok: true, admin: true });
-  }
-
-  if (!usuarios[clave]) {
-    return res.json({ ok: false, error: "Clave inválida" });
-  }
-
-  if (ahora > usuarios[clave]) {
-    return res.json({ ok: false, error: "Acceso vencido" });
-  }
-
-  res.json({ ok: true, admin: false });
-});
-
-// =====================
-// CREAR USUARIO (ADMIN)
-// =====================
-app.post("/crear-usuario", (req, res) => {
-  const { adminClave, nuevaClave, dias } = req.body;
-
-  if (adminClave !== ADMIN) {
-    return res.json({ ok: false });
-  }
-
-  usuarios[nuevaClave] = Date.now() + dias * 86400000;
-  res.json({ ok: true });
-});
-
-// =====================
-// S77
-// =====================
-app.post("/calcular", (req, res) => {
+/* ===== ENDPOINT ===== */
+app.post("/calcular", auth, (req, res) => {
   const ultimos = req.body.ultimos || [];
   let cnt = {};
   let presentes = [...new Set(ultimos)];
+
   const sumar = n => cnt[n] = (cnt[n] || 0) + 1;
 
   lotes3.forEach(l => {
-    let pos = l.filter(n => presentes.includes(n));
-    if (pos.length === 2) {
-      let falt = l.find(n => !pos.includes(n));
+    let p = l.filter(n => presentes.includes(n));
+    if (p.length === 2) {
+      let falt = l.find(n => !p.includes(n));
       sumar(falt);
     }
   });
 
   lotes4.forEach(l => {
-    let pos = l.filter(n => presentes.includes(n));
-    if (pos.length === 2) {
-      l.filter(n => !pos.includes(n)).forEach(sumar);
+    let p = l.filter(n => presentes.includes(n));
+    if (p.length === 2) {
+      l.filter(n => !p.includes(n)).forEach(sumar);
     }
   });
 
@@ -99,7 +67,6 @@ app.post("/calcular", (req, res) => {
   res.json({ favoritos, explosivos });
 });
 
-// =====================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("S77 backend activo"));
-
+app.listen(PORT, () => {
+  console.log("Backend S77 activo");
+});
