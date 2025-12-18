@@ -17,7 +17,7 @@ function auth(req, res, next) {
   next();
 }
 
-/* ===== LOGIN / USUARIOS (SIMPLIFICADO) ===== */
+/* ===== LOGIN / USUARIOS (SIN DB) ===== */
 const ADMIN = "ADMIN-1407";
 let usuarios = {};
 
@@ -38,14 +38,16 @@ app.post("/login", auth, (req, res) => {
 
 app.post("/crear-usuario", auth, (req, res) => {
   const { adminClave, nuevaClave, dias } = req.body;
+
   if (adminClave !== ADMIN) {
     return res.status(403).json({ error: "No autorizado" });
   }
+
   usuarios[nuevaClave] = Date.now() + dias * 86400000;
   res.json({ ok: true });
 });
 
-/* ===== LOTES PRIVADOS ===== */
+/* ===== LOTES PRIVADOS (OCULTOS) ===== */
 const lotes3 = [
   [0,13,28],[1,18,36],[1,25,34],[2,10,35],[2,10,22],
   [3,18,19],[4,10,22],[6,17,28],[7,19,27],
@@ -62,32 +64,36 @@ const lotes4 = [
 /* ===== CALCULAR ===== */
 app.post("/calcular", auth, (req, res) => {
   const ultimos = req.body.ultimos || [];
-  let cnt = {};
+  let contador = {};
   let presentes = [...new Set(ultimos)];
 
-  const sumar = n => cnt[n] = (cnt[n] || 0) + 1;
+  const sumar = n => {
+    contador[n] = (contador[n] || 0) + 1;
+  };
 
-  lotes3.forEach(l => {
-    let p = l.filter(n => presentes.includes(n));
+  // LOTES DE 3
+  lotes3.forEach(lote => {
+    const p = lote.filter(n => presentes.includes(n));
     if (p.length === 2) {
-      let falt = l.find(n => !p.includes(n));
-      sumar(falt);
+      const faltante = lote.find(n => !p.includes(n));
+      sumar(faltante);
     }
   });
 
-  lotes4.forEach(l => {
-    let p = l.filter(n => presentes.includes(n));
+  // LOTES DE 4
+  lotes4.forEach(lote => {
+    const p = lote.filter(n => presentes.includes(n));
     if (p.length === 2) {
-      l.filter(n => !p.includes(n)).forEach(sumar);
+      lote.filter(n => !p.includes(n)).forEach(sumar);
     }
   });
 
   let favoritos = [];
   let explosivos = [];
 
-  for (let n in cnt) {
-    cnt[n] > 1 ? explosivos.push(n) : favoritos.push(n);
-  }
+  Object.keys(contador).forEach(n => {
+    contador[n] > 1 ? explosivos.push(n) : favoritos.push(n);
+  });
 
   res.json({ favoritos, explosivos });
 });
