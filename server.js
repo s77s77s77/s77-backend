@@ -3,15 +3,12 @@ const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_SECRET = process.env.API_SECRET;
+const API_SECRET = process.env.API_SECRET || "S77-PRIVATE-2025";
 
 app.use(express.json());
+app.use(cors({ origin: "*", methods: ["POST"] }));
 
-app.use(cors({
-  origin: "*",
-  methods: ["POST"],
-}));
-
+/* ===== SEGURIDAD ===== */
 function auth(req, res, next) {
   const key = req.headers["x-api-key"];
   if (!key || key !== API_SECRET) {
@@ -20,7 +17,35 @@ function auth(req, res, next) {
   next();
 }
 
-/* ===== LOTES (PRIVADOS) ===== */
+/* ===== LOGIN / USUARIOS (SIMPLIFICADO) ===== */
+const ADMIN = "ADMIN-1407";
+let usuarios = {};
+
+app.post("/login", auth, (req, res) => {
+  const { clave } = req.body;
+  const ahora = Date.now();
+
+  if (clave === ADMIN) {
+    return res.json({ ok: true, admin: true });
+  }
+
+  if (!usuarios[clave] || usuarios[clave] < ahora) {
+    return res.json({ ok: false, error: "Clave inválida o vencida" });
+  }
+
+  res.json({ ok: true, admin: false });
+});
+
+app.post("/crear-usuario", auth, (req, res) => {
+  const { adminClave, nuevaClave, dias } = req.body;
+  if (adminClave !== ADMIN) {
+    return res.status(403).json({ error: "No autorizado" });
+  }
+  usuarios[nuevaClave] = Date.now() + dias * 86400000;
+  res.json({ ok: true });
+});
+
+/* ===== LOTES PRIVADOS ===== */
 const lotes3 = [
   [0,13,28],[1,18,36],[1,25,34],[2,10,35],[2,10,22],
   [3,18,19],[4,10,22],[6,17,28],[7,19,27],
@@ -34,7 +59,7 @@ const lotes4 = [
   [6,10,13,31],[14,23,25,16]
 ];
 
-/* ===== ENDPOINT ===== */
+/* ===== CALCULAR ===== */
 app.post("/calcular", auth, (req, res) => {
   const ultimos = req.body.ultimos || [];
   let cnt = {};
