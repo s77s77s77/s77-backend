@@ -42,7 +42,7 @@ app.post("/crear-usuario", (req, res) => {
 });
 
 /* =========================
-   LOTES DEFINIDOS
+   LOTES
 ========================= */
 const lotes3 = [
   [0,13,28],[1,25,34],[2,10,35],[2,10,22],[3,18,19],
@@ -60,30 +60,30 @@ const lotes4 = [
 ];
 
 /* =========================
-   CALCULAR
+   CALCULAR (LÓGICA REAL)
 ========================= */
 app.post("/calcular", (req, res) => {
   const { ultimos } = req.body;
 
-  if (!Array.isArray(ultimos) || ultimos.length === 0) {
-    return res.status(400).json({ error: "Datos inválidos" });
+  if (!Array.isArray(ultimos) || ultimos.length < 2) {
+    return res.json({ favoritos: [], explosivos: [] });
   }
-
-  const zonaA = ultimos.slice(0, 8); // posiciones 1–8
-  const zonaB = ultimos.slice(8, 16); // posiciones 9–16
 
   let favoritos = [];
   let explosivos = [];
 
+  // índice 0 = más reciente
+  const reciente = ultimos[0];
+  const anteriores = ultimos.slice(1);
+
   /* ===== LOTES DE 3 ===== */
   lotes3.forEach(lote => {
-    const enA = lote.filter(n => zonaA.includes(n));
-    const enB = lote.filter(n => zonaB.includes(n));
+    const tieneReciente = lote.includes(reciente);
+    const tieneAnterior = lote.some(n => anteriores.includes(n));
 
-    // uno en cada zona
-    if (enA.length === 1 && enB.length === 1) {
+    if (tieneReciente && tieneAnterior) {
       const faltante = lote.find(
-        n => !enA.includes(n) && !enB.includes(n)
+        n => n !== reciente && !anteriores.includes(n)
       );
 
       if (faltante !== undefined && !favoritos.includes(faltante)) {
@@ -94,20 +94,20 @@ app.post("/calcular", (req, res) => {
 
   /* ===== LOTES DE 4 ===== */
   lotes4.forEach(lote => {
-    const enA = lote.filter(n => zonaA.includes(n));
-    const enB = lote.filter(n => zonaB.includes(n));
+    const presentes = lote.filter(n => ultimos.includes(n));
 
-    // exactamente 2 detectados, uno en cada zona
-    if (enA.length === 1 && enB.length === 1) {
-      const faltantes = lote.filter(
-        n => !enA.includes(n) && !enB.includes(n)
-      );
+    if (presentes.length === 2) {
+      const tieneReciente = presentes.includes(reciente);
+      const tieneAnterior = presentes.some(n => anteriores.includes(n));
 
-      faltantes.forEach(f => {
-        if (!favoritos.includes(f)) {
-          favoritos.push(f);
-        }
-      });
+      if (tieneReciente && tieneAnterior) {
+        const faltantes = lote.filter(n => !presentes.includes(n));
+        faltantes.forEach(f => {
+          if (!favoritos.includes(f)) {
+            favoritos.push(f);
+          }
+        });
+      }
     }
   });
 
