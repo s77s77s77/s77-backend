@@ -3,25 +3,16 @@ const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_SECRET = process.env.API_SECRET;
 
 app.use(express.json());
 app.use(cors({ origin: "*", methods: ["POST"] }));
-
-/* ===== SEGURIDAD ===== */
-function auth(req, res, next) {
-  const key = req.headers["x-api-key"];
-  if (!key || key !== API_SECRET) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-  next();
-}
 
 /* ===== LOGIN / USUARIOS ===== */
 const ADMIN = "ADMIN-1407";
 let usuarios = {};
 
-app.post("/login", auth, (req, res) => {
+/* ===== LOGIN ===== */
+app.post("/login", (req, res) => {
   const { clave } = req.body;
   const ahora = Date.now();
 
@@ -36,7 +27,8 @@ app.post("/login", auth, (req, res) => {
   res.json({ ok: true, admin: false });
 });
 
-app.post("/crear-usuario", auth, (req, res) => {
+/* ===== CREAR USUARIO (SOLO ADMIN) ===== */
+app.post("/crear-usuario", (req, res) => {
   const { adminClave, nuevaClave, dias } = req.body;
 
   if (adminClave !== ADMIN) {
@@ -56,44 +48,29 @@ const lotes3 = [
   [17,20,35],[7,3,30]
 ];
 
-const lotes4 = [
-  [3,18,24,26],[4,11,15,29],[5,12,16,21],
-  [6,10,13,31],[14,23,25,16]
-];
-
 /* ===== CALCULAR ===== */
-app.post("/calcular", auth, (req, res) => {
-  const ultimos = req.body.ultimos || [];
-  let cnt = {};
-  let presentes = [...new Set(ultimos)];
+app.post("/calcular", (req, res) => {
+  const { ultimos } = req.body;
 
-  const sumar = n => cnt[n] = (cnt[n] || 0) + 1;
-
-  lotes3.forEach(l => {
-    const p = l.filter(n => presentes.includes(n));
-    if (p.length === 2) {
-      const falt = l.find(n => !p.includes(n));
-      sumar(falt);
-    }
-  });
-
-  lotes4.forEach(l => {
-    const p = l.filter(n => presentes.includes(n));
-    if (p.length === 2) {
-      l.filter(n => !p.includes(n)).forEach(sumar);
-    }
-  });
-
-  const favoritos = [];
-  const explosivos = [];
-
-  for (let n in cnt) {
-    cnt[n] > 1 ? explosivos.push(n) : favoritos.push(n);
+  if (!Array.isArray(ultimos)) {
+    return res.status(400).json({ error: "Datos inválidos" });
   }
+
+  let favoritos = [];
+  let explosivos = [];
+
+  lotes3.forEach(lote => {
+    const presentes = lote.filter(n => ultimos.includes(n));
+    if (presentes.length === 2) {
+      const faltante = lote.find(n => !presentes.includes(n));
+      if (!favoritos.includes(faltante)) favoritos.push(faltante);
+    }
+  });
 
   res.json({ favoritos, explosivos });
 });
 
+/* ===== START ===== */
 app.listen(PORT, () => {
-  console.log("Backend S77 activo");
+  console.log("S77 backend activo en puerto", PORT);
 });
