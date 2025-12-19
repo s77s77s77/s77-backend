@@ -3,7 +3,7 @@ const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_SECRET = process.env.API_SECRET || "S77-PRIVATE-2025";
+const API_SECRET = process.env.API_SECRET;
 
 app.use(express.json());
 app.use(cors({ origin: "*", methods: ["POST"] }));
@@ -17,7 +17,7 @@ function auth(req, res, next) {
   next();
 }
 
-/* ===== LOGIN / USUARIOS (SIN DB) ===== */
+/* ===== LOGIN / USUARIOS ===== */
 const ADMIN = "ADMIN-1407";
 let usuarios = {};
 
@@ -47,7 +47,7 @@ app.post("/crear-usuario", auth, (req, res) => {
   res.json({ ok: true });
 });
 
-/* ===== LOTES PRIVADOS (OCULTOS) ===== */
+/* ===== LOTES PRIVADOS ===== */
 const lotes3 = [
   [0,13,28],[1,18,36],[1,25,34],[2,10,35],[2,10,22],
   [3,18,19],[4,10,22],[6,17,28],[7,19,27],
@@ -64,36 +64,32 @@ const lotes4 = [
 /* ===== CALCULAR ===== */
 app.post("/calcular", auth, (req, res) => {
   const ultimos = req.body.ultimos || [];
-  let contador = {};
+  let cnt = {};
   let presentes = [...new Set(ultimos)];
 
-  const sumar = n => {
-    contador[n] = (contador[n] || 0) + 1;
-  };
+  const sumar = n => cnt[n] = (cnt[n] || 0) + 1;
 
-  // LOTES DE 3
-  lotes3.forEach(lote => {
-    const p = lote.filter(n => presentes.includes(n));
+  lotes3.forEach(l => {
+    const p = l.filter(n => presentes.includes(n));
     if (p.length === 2) {
-      const faltante = lote.find(n => !p.includes(n));
-      sumar(faltante);
+      const falt = l.find(n => !p.includes(n));
+      sumar(falt);
     }
   });
 
-  // LOTES DE 4
-  lotes4.forEach(lote => {
-    const p = lote.filter(n => presentes.includes(n));
+  lotes4.forEach(l => {
+    const p = l.filter(n => presentes.includes(n));
     if (p.length === 2) {
-      lote.filter(n => !p.includes(n)).forEach(sumar);
+      l.filter(n => !p.includes(n)).forEach(sumar);
     }
   });
 
-  let favoritos = [];
-  let explosivos = [];
+  const favoritos = [];
+  const explosivos = [];
 
-  Object.keys(contador).forEach(n => {
-    contador[n] > 1 ? explosivos.push(n) : favoritos.push(n);
-  });
+  for (let n in cnt) {
+    cnt[n] > 1 ? explosivos.push(n) : favoritos.push(n);
+  }
 
   res.json({ favoritos, explosivos });
 });
