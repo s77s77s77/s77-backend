@@ -13,7 +13,6 @@ app.use(cors({ origin: "*", methods: ["POST"] }));
 const ADMIN = "ADMIN-1407";
 let usuarios = {};
 
-/* ===== LOGIN ===== */
 app.post("/login", (req, res) => {
   const { clave } = req.body;
   const ahora = Date.now();
@@ -29,7 +28,6 @@ app.post("/login", (req, res) => {
   res.json({ ok: true, admin: false });
 });
 
-/* ===== CREAR USUARIO ===== */
 app.post("/crear-usuario", (req, res) => {
   const { adminClave, nuevaClave, dias } = req.body;
 
@@ -42,7 +40,7 @@ app.post("/crear-usuario", (req, res) => {
 });
 
 /* =========================
-   LOTES
+   LOTES DEFINIDOS
 ========================= */
 const lotes3 = [
   [0,13,28],[1,25,34],[2,10,35],[2,10,22],[3,18,19],
@@ -60,54 +58,78 @@ const lotes4 = [
 ];
 
 /* =========================
-   CALCULAR (LÓGICA REAL)
+   CALCULAR (LÓGICA FINAL)
 ========================= */
 app.post("/calcular", (req, res) => {
   const { ultimos } = req.body;
 
-  if (!Array.isArray(ultimos) || ultimos.length < 2) {
+  if (!Array.isArray(ultimos) || ultimos.length === 0) {
     return res.json({ favoritos: [], explosivos: [] });
   }
 
-  let favoritos = [];
-  let explosivos = [];
+  let favoritosMap = {}; // numero -> cantidad de avisos
 
-  // índice 0 = más reciente
-  const reciente = ultimos[0];
-  const anteriores = ultimos.slice(1);
+  // helper: índice de un número en ultimos
+  const idx = n => ultimos.indexOf(n);
+
+  // helper: chequea condiciones base entre dos números
+  function condicionesValidas(a, b) {
+    const ia = idx(a);
+    const ib = idx(b);
+
+    if (ia === -1 || ib === -1) return false;
+
+    // al menos uno entre casilleros 1–8 (índices 0–7)
+    if (!(ia <= 7 || ib <= 7)) return false;
+
+    // distancia máxima 8 inclusive
+    if (Math.abs(ia - ib) > 8) return false;
+
+    return true;
+  }
 
   /* ===== LOTES DE 3 ===== */
   lotes3.forEach(lote => {
-    const tieneReciente = lote.includes(reciente);
-    const tieneAnterior = lote.some(n => anteriores.includes(n));
+    const presentes = lote.filter(n => idx(n) !== -1);
 
-    if (tieneReciente && tieneAnterior) {
-      const faltante = lote.find(
-        n => n !== reciente && !anteriores.includes(n)
-      );
+    if (presentes.length === 2) {
+      const [a, b] = presentes;
 
-      if (faltante !== undefined && !favoritos.includes(faltante)) {
-        favoritos.push(faltante);
+      if (condicionesValidas(a, b)) {
+        const faltante = lote.find(n => n !== a && n !== b);
+        if (faltante !== undefined) {
+          favoritosMap[faltante] = (favoritosMap[faltante] || 0) + 1;
+        }
       }
     }
   });
 
   /* ===== LOTES DE 4 ===== */
   lotes4.forEach(lote => {
-    const presentes = lote.filter(n => ultimos.includes(n));
+    const presentes = lote.filter(n => idx(n) !== -1);
 
     if (presentes.length === 2) {
-      const tieneReciente = presentes.includes(reciente);
-      const tieneAnterior = presentes.some(n => anteriores.includes(n));
+      const [a, b] = presentes;
 
-      if (tieneReciente && tieneAnterior) {
-        const faltantes = lote.filter(n => !presentes.includes(n));
+      if (condicionesValidas(a, b)) {
+        const faltantes = lote.filter(n => n !== a && n !== b);
         faltantes.forEach(f => {
-          if (!favoritos.includes(f)) {
-            favoritos.push(f);
-          }
+          favoritosMap[f] = (favoritosMap[f] || 0) + 1;
         });
       }
+    }
+  });
+
+  /* ===== CLASIFICAR FAVORITOS / EXPLOSIVOS ===== */
+  let favoritos = [];
+  let explosivos = [];
+
+  Object.entries(favoritosMap).forEach(([num, count]) => {
+    const n = parseInt(num, 10);
+    if (count >= 2) {
+      explosivos.push(n);
+    } else {
+      favoritos.push(n);
     }
   });
 
