@@ -40,11 +40,11 @@ app.post("/crear-usuario", (req, res) => {
 });
 
 /* =========================
-   LOTES DEFINIDOS (CORREGIDOS)
+   LOTES DEFINIDOS
 ========================= */
 const lotes3 = [
   [0,13,28],
-  [1,18,36], // ← agregado
+  [1,18,36],
   [1,25,34],
   [2,10,35],
   [2,10,22],
@@ -53,7 +53,7 @@ const lotes3 = [
   [6,17,28],
   [7,19,27],
   [7,9,32],
-  [7,3,30], // ← agregado
+  [7,3,30],
   [8,33,28],
   [8,26,35],
   [9,14,30],
@@ -73,62 +73,76 @@ const lotes4 = [
 ];
 
 /* =========================
-   CALCULAR (LÓGICA FINAL)
+   CALCULAR – MOTOR FINAL
 ========================= */
 app.post("/calcular", (req, res) => {
   const { ultimos } = req.body;
 
-  if (!Array.isArray(ultimos) || ultimos.length === 0) {
+  if (!Array.isArray(ultimos)) {
     return res.json({ favoritos: [], explosivos: [] });
   }
 
-  let favoritosMap = {};
+  let contador = {}; // número -> cantidad de coincidencias válidas
 
+  // índice dentro de los últimos 16
   const idx = n => ultimos.indexOf(n);
 
+  // condiciones EXACTAS del sistema
   function condicionesValidas(a, b) {
     const ia = idx(a);
     const ib = idx(b);
 
+    // ambos deben estar en los últimos 16
     if (ia === -1 || ib === -1) return false;
+
+    // al menos uno entre casilleros 1–8 (índices 0–7)
     if (!(ia <= 7 || ib <= 7)) return false;
+
+    // distancia máxima 8 inclusive
     if (Math.abs(ia - ib) > 8) return false;
 
     return true;
   }
 
-  // LOTES DE 3
+  /* ===== LOTES DE 3 ===== */
   lotes3.forEach(lote => {
     const presentes = lote.filter(n => idx(n) !== -1);
+
+    // EXACTAMENTE dos presentes (si están los 3, se invalida solo)
     if (presentes.length === 2) {
       const [a, b] = presentes;
+
       if (condicionesValidas(a, b)) {
         const faltante = lote.find(n => n !== a && n !== b);
         if (faltante !== undefined) {
-          favoritosMap[faltante] = (favoritosMap[faltante] || 0) + 1;
+          contador[faltante] = (contador[faltante] || 0) + 1;
         }
       }
     }
   });
 
-  // LOTES DE 4
+  /* ===== LOTES DE 4 ===== */
   lotes4.forEach(lote => {
     const presentes = lote.filter(n => idx(n) !== -1);
+
+    // EXACTAMENTE dos presentes
     if (presentes.length === 2) {
       const [a, b] = presentes;
+
       if (condicionesValidas(a, b)) {
         const faltantes = lote.filter(n => n !== a && n !== b);
         faltantes.forEach(f => {
-          favoritosMap[f] = (favoritosMap[f] || 0) + 1;
+          contador[f] = (contador[f] || 0) + 1;
         });
       }
     }
   });
 
+  /* ===== CLASIFICAR RESULTADO ===== */
   let favoritos = [];
   let explosivos = [];
 
-  Object.entries(favoritosMap).forEach(([num, count]) => {
+  Object.entries(contador).forEach(([num, count]) => {
     const n = parseInt(num, 10);
     if (count >= 2) {
       explosivos.push(n);
