@@ -40,13 +40,28 @@ app.post("/crear-usuario", (req, res) => {
 });
 
 /* =========================
-   LOTES DEFINIDOS
+   LOTES DEFINIDOS (CORREGIDOS)
 ========================= */
 const lotes3 = [
-  [0,13,28],[1,25,34],[2,10,35],[2,10,22],[3,18,19],
-  [4,10,22],[6,17,28],[7,19,27],[7,9,32],[8,33,28],
-  [8,26,35],[9,14,30],[9,1,30],[9,25,36],
-  [10,26,24],[11,22,33],[17,20,35]
+  [0,13,28],
+  [1,18,36], // ← agregado
+  [1,25,34],
+  [2,10,35],
+  [2,10,22],
+  [3,18,19],
+  [4,10,22],
+  [6,17,28],
+  [7,19,27],
+  [7,9,32],
+  [7,3,30], // ← agregado
+  [8,33,28],
+  [8,26,35],
+  [9,14,30],
+  [9,1,30],
+  [9,25,36],
+  [10,26,24],
+  [11,22,33],
+  [17,20,35]
 ];
 
 const lotes4 = [
@@ -67,34 +82,26 @@ app.post("/calcular", (req, res) => {
     return res.json({ favoritos: [], explosivos: [] });
   }
 
-  let favoritosMap = {}; // numero -> cantidad de avisos
+  let favoritosMap = {};
 
-  // helper: índice de un número en ultimos
   const idx = n => ultimos.indexOf(n);
 
-  // helper: chequea condiciones base entre dos números
   function condicionesValidas(a, b) {
     const ia = idx(a);
     const ib = idx(b);
 
     if (ia === -1 || ib === -1) return false;
-
-    // al menos uno entre casilleros 1–8 (índices 0–7)
     if (!(ia <= 7 || ib <= 7)) return false;
-
-    // distancia máxima 8 inclusive
     if (Math.abs(ia - ib) > 8) return false;
 
     return true;
   }
 
-  /* ===== LOTES DE 3 ===== */
+  // LOTES DE 3
   lotes3.forEach(lote => {
     const presentes = lote.filter(n => idx(n) !== -1);
-
     if (presentes.length === 2) {
       const [a, b] = presentes;
-
       if (condicionesValidas(a, b)) {
         const faltante = lote.find(n => n !== a && n !== b);
         if (faltante !== undefined) {
@@ -104,13 +111,11 @@ app.post("/calcular", (req, res) => {
     }
   });
 
-  /* ===== LOTES DE 4 ===== */
+  // LOTES DE 4
   lotes4.forEach(lote => {
     const presentes = lote.filter(n => idx(n) !== -1);
-
     if (presentes.length === 2) {
       const [a, b] = presentes;
-
       if (condicionesValidas(a, b)) {
         const faltantes = lote.filter(n => n !== a && n !== b);
         faltantes.forEach(f => {
@@ -120,7 +125,6 @@ app.post("/calcular", (req, res) => {
     }
   });
 
-  /* ===== CLASIFICAR FAVORITOS / EXPLOSIVOS ===== */
   let favoritos = [];
   let explosivos = [];
 
