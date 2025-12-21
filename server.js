@@ -45,11 +45,16 @@ const lotes3 = [
 
 const lotes4 = [
   [3,18,24,26],
-  [4,11,15,29], // ← corregido
+  [4,11,15,29],
   [5,12,16,21],
   [6,10,13,31],
   [14,23,25,16]
 ];
+
+/* =========================
+   CONTADOR GLOBAL DE LOTES
+========================= */
+let completedCount = 0;
 
 /* =========================
    CALCULAR – MOTOR FINAL
@@ -58,11 +63,17 @@ app.post("/calcular", (req, res) => {
   const { ultimos } = req.body;
 
   if (!Array.isArray(ultimos)) {
-    return res.json({ favoritos: [], explosivos: [], completed: false });
+    return res.json({
+      favoritos: [],
+      explosivos: [],
+      completed: false,
+      completedCount
+    });
   }
 
   let contador = {};
   let completed = false;
+  let loteDetectado = false;
 
   const idx = n => ultimos.indexOf(n);
 
@@ -77,11 +88,13 @@ app.post("/calcular", (req, res) => {
 
   /* ===== LOTES DE 3 ===== */
   lotes3.forEach(lote => {
+    if (loteDetectado) return;
+
     const presentes = lote.filter(n => idx(n) !== -1);
 
-    // COMPLETADO lote de 3
-    if (presentes.length === 3) {
+    if (presentes.length === 3 && !loteDetectado) {
       completed = true;
+      loteDetectado = true;
       return;
     }
 
@@ -98,11 +111,13 @@ app.post("/calcular", (req, res) => {
 
   /* ===== LOTES DE 4 ===== */
   lotes4.forEach(lote => {
+    if (loteDetectado) return;
+
     const presentes = lote.filter(n => idx(n) !== -1);
 
-    // COMPLETADO lote de 4 CUANDO APARECE EL TERCER NÚMERO
-    if (presentes.length >= 3) {
+    if (presentes.length >= 3 && !loteDetectado) {
       completed = true;
+      loteDetectado = true;
       return;
     }
 
@@ -129,7 +144,17 @@ app.post("/calcular", (req, res) => {
     }
   });
 
-  res.json({ favoritos, explosivos, completed });
+  /* ===== CONTADOR GLOBAL ===== */
+  if (completed) {
+    completedCount++;
+  }
+
+  res.json({
+    favoritos,
+    explosivos,
+    completed,
+    completedCount
+  });
 });
 
 /* =========================
@@ -138,3 +163,4 @@ app.post("/calcular", (req, res) => {
 app.listen(PORT, () => {
   console.log("S77 backend activo");
 });
+                     
